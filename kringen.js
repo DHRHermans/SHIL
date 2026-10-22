@@ -1,0 +1,60 @@
+const partUnits={R:'Ω',L:'mH',C:'µF'},partDefaults={R:30,L:100,C:100};
+let parts=[];
+function kringSolve(items,U,f,series){
+ if(!items.length||![U,f].every(Number.isFinite)||U<=0||f<=0||items.some(p=>!['R','L','C'].includes(p.type)||!Number.isFinite(p.value)||p.value<=0))throw Error('Gebruik positieve eindige waarden voor bron en componenten.');
+ const w=2*Math.PI*f;let real=0,imag=0,reactiveScale=0;
+ const rows=items.map(p=>{const z=p.type==='R'?p.value:p.type==='L'?w*p.value/1000:-1/(w*p.value/1e6);if(series){if(p.type==='R')real+=z;else{imag+=z;reactiveScale+=Math.abs(z);}}else{if(p.type==='R')real+=1/z;else{imag-=1/z;reactiveScale+=Math.abs(1/z);}}return {...p,z}});
+ if(Math.abs(imag)<=32*Number.EPSILON*reactiveScale)imag=0;
+ const mag=Math.hypot(real,imag),cancel=real===0&&imag===0, Z=series?mag:cancel?Infinity:1/mag,I=series?(cancel?Infinity:U/mag):U*mag;
+ const phi=cancel?null:imag===0?0:(series?1:-1)*Math.atan2(imag,real),P=series?(cancel?null:I*I*real):U*U*real,Q=imag===0?(series&&cancel?null:0):series?(cancel?null:I*I*imag):-U*U*imag;
+ rows.forEach(p=>{p.U=series?(cancel?null:I*Math.abs(p.z)):U;p.I=series?(cancel?null:I):U/Math.abs(p.z)});
+ const ls=items.filter(p=>p.type==='L').map(p=>p.value/1000),cs=items.filter(p=>p.type==='C').map(p=>p.value/1e6);
+ const Leq=ls.length?(series?ls.reduce((a,b)=>a+b,0):1/ls.reduce((a,b)=>a+1/b,0)):null,Ceq=cs.length?(series?1/cs.reduce((a,b)=>a+1/b,0):cs.reduce((a,b)=>a+b,0)):null;
+ if(![real,imag,...rows.map(p=>p.z)].every(Number.isFinite))throw Error('Deze combinatie van waarden valt buiten het numerieke bereik.');
+ return {real,imag,Z,I,phi,P,Q,S:U*I,rows,cancel,f0:Leq&&Ceq?1/(2*Math.PI*Math.sqrt(Leq*Ceq)):null};
+}
+function kringSolveDC(items,U,series){
+ if(!items.length||!Number.isFinite(U)||U<=0||items.some(p=>!['R','L','C'].includes(p.type)||!Number.isFinite(p.value)||p.value<=0))throw Error('Gebruik positieve eindige waarden voor bron en componenten.');
+ const rs=items.filter(p=>p.type==='R'),cs=items.filter(p=>p.type==='C'),ls=items.filter(p=>p.type==='L');
+ const noSteady=series?!cs.length&&!rs.length:!!ls.length;
+ const R=series?(cs.length?Infinity:rs.reduce((a,p)=>a+p.value,0)):(ls.length?0:rs.length?1/rs.reduce((a,p)=>a+1/p.value,0):Infinity);
+ const I=noSteady?null:R===Infinity?0:U/R,P=I===null?null:U*I;
+ const rows=items.map(p=>({...p,U:series?(noSteady?null:p.type==='R'?I*p.value:p.type==='L'?0:cs.length===1?U:null):U,I:series?I:p.type==='R'?U/p.value:p.type==='C'?0:null}));
+ if(!rows.every(p=>[p.U,p.I].every(x=>x===null||Number.isFinite(x)))||(I!==null&&!Number.isFinite(I))||(P!==null&&!Number.isFinite(P)))throw Error('Deze waarden vallen buiten het numerieke bereik.');
+ return {R,I,P,rows,noSteady,multiCap:series&&cs.length>1};
+}
+const kn=n=>n===null?'niet bepaald':n===Infinity?'∞':fmt(n);
+function partsRender(){const counts={R:0,L:0,C:0};$('#kringParts').innerHTML=parts.map((p,i)=>`<label>${p.type}${++counts[p.type]} (${partUnits[p.type]})<div style="display:flex;gap:8px"><input data-part="${i}" value="${p.value}" inputmode="decimal" aria-label="${p.type}${counts[p.type]} in ${partUnits[p.type]}"><button data-remove="${i}" aria-label="Verwijder component ${i+1}">×</button></div></label>`).join('');kringUpdate();}
+function kringRead(){const U=num($('#kringU').value),f=num($('#kringF').value);if(!$('#kringU').value.trim()||!Number.isFinite(U)||U<=0||($('#kringSource').value==='ac'&&(!$('#kringF').value.trim()||!Number.isFinite(f)||f<=0)))throw Error('Vul spanning en frequentie groter dan nul in.');if(!parts.length)throw Error('Voeg minstens één component toe.');const items=parts.map(p=>{const v=num(p.value);if(!String(p.value).trim()||!Number.isFinite(v)||v<=0)throw Error('Elke componentwaarde moet groter dan nul zijn.');return {type:p.type,value:v}});return {items,U,f,series:$('#rlctype').value==='series'};}
+function kringDiagram(items,series,dc=false){const counts={R:0,L:0,C:0},n=items.length,W=Math.max(520,series?n*130+150:n*120+150),H=300;
+ const wire=d=>`<path d="${d}" fill="none" stroke="#849b96" stroke-width="2"/>`;
+ let s=`<circle cx="45" cy="150" r="22" fill="white" stroke="#087e82" stroke-width="2"/><text x="45" y="156" text-anchor="middle" font-size="22">${dc?'⎓':'∿'}</text>`;
+ if(series)s+=wire(`M45 128V80H${W-35}V240H45V172`);else s+=wire(`M45 128V60H${W-35}M45 172V250H${W-35}`);
+ items.forEach((p,i)=>{const name=p.type+(++counts[p.type]),symbol=p.type==='R'?resistor:p.type==='L'?coil:capacitor,x=series?100+i*130:145+i*120;
+ if(series){s+=`<rect x="${x}" y="60" width="80" height="40" fill="#f5f9f7"/>`+symbol(x,80)+label(x+40,48,name,colors.a,'middle')+label(x+40,123,fmt(p.value)+' '+partUnits[p.type],colors.a,'middle');}
+ else{s+=wire(`M${x} 60V110M${x} 190V250`)+`<g transform="translate(${x} 110) rotate(90)">${symbol(0,0)}</g>`+label(x+18,150,name)+label(x,280,fmt(p.value)+' '+partUnits[p.type],colors.a,'middle');}});
+ return '<div class="visual-title">'+(series?'Eén stroompad · dezelfde I':'Afzonderlijke takken · dezelfde U')+'</div><div style="overflow:auto"><svg style="min-width:'+W+'px" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+(series?'Serie':'Parallel')+'schakeling">'+s+'</svg></div><p class="small">Scroll horizontaal bij veel componenten.</p>';
+}
+function kringUpdate(){const dc=$('#kringSource').value==='dc';$('#kringVoltageLabel').textContent=dc?'Gelijkspanning U (V)':'Bronspanning RMS (V)';$('#kringFrequencyWrap').classList.toggle('hidden',dc);$('#kringF').disabled=dc;$('#kringMessage').textContent='';try{const v=kringRead();if(dc){kringUpdateDC(v);return;}const r=kringSolve(v.items,v.U,v.f,v.series);$('#rlcformula').textContent=v.series?'Z = |ΣR + j(ΣXᴸ − ΣXᶜ)|':'Y = Σ(1/R) + j[Σ(1/Xᶜ) − Σ(1/Xᴸ)] · Z = 1/|Y|';const nature=r.phi===null?'Ideaal grensgeval':Math.abs(r.phi)<1e-9?'In fase':r.phi>0?'Inductief · stroom ijlt na':'Capacitief · stroom ijlt voor';$('#rlcresult').innerHTML=`${nature}<strong>|Z| = ${kn(r.Z)} Ω</strong>I = ${kn(r.I)} A<br>φ = ${r.phi===null?'niet bepaald':fmt(r.phi*180/Math.PI)+'°'} · cos φ = ${r.phi===null?'niet bepaald':fmt(Math.cos(r.phi))}<hr>P = ${kn(r.P)} W · Q = ${kn(r.Q)} var<br>S = ${kn(r.S)} VA${r.f0?'<br>f₀ = '+fmt(r.f0)+' Hz':''}${r.cancel?'<p>'+ (v.series?'Ideale serie-LC bij resonantie: onbegrensde stroom; geen eindige stationaire oplossing.':'Reactieve takstromen heffen elkaar op; geen bronstroom. De fasehoek is dan niet bepaald.')+'</p>':''}`;
+const counts={R:0,L:0,C:0};$('#kringValues').innerHTML=r.rows.map(p=>`<tr><th>${p.type}${++counts[p.type]}</th><td>${fmt(p.value)} ${partUnits[p.type]}</td><td>${kn(p.U)}</td><td>${kn(p.I)}</td></tr>`).join('');
+$('#rlcsteps').innerHTML=[`Zet L om naar H en C naar F. Bereken per spoel Xᴸ = 2πfL en per condensator Xᶜ = 1/(2πfC).`,v.series?`Tel de impedantiecomponenten op: Rₜ = ${fmt(r.real)} Ω; Xₜ = ${fmt(r.imag)} Ω.`:`Tel de admittanties op: G = ${fmt(r.real)} S; B = ${fmt(r.imag)} S.`,`Bereken |Z| = ${kn(r.Z)} Ω en ${v.series?'I = U/|Z|':'I = U × |Y|'} = ${kn(r.I)} A.`,v.series?'Over elke component: Uₖ = I × |Zₖ|. De bronspanning is de vectorsom.':'Door elke tak: Iₖ = U/|Zₖ|. De bronstroom is de vectorsom.',`P is actief vermogen; Q > 0 is inductief en Q < 0 capacitief. S = U × I.`].map(s=>'<li>'+s+'</li>').join('');
+$('#circuitVisual').innerHTML=kringDiagram(v.items,v.series);$('#rlcTriangle').innerHTML=r.cancel?'<p>Bij dit ideale grensgeval is geen fasehoek bepaald.</p>':triangle(r.real,Math.abs(r.imag),v.series?'Rₜ':'G',v.series?'|Xₜ|':'|B|',v.series?'|Z|':'|Y|',v.series?'Ω':'S',v.series?'Impedantiedriehoek':'Admittantiedriehoek')+'<p class="small">De verticale zijde toont de grootte. Het teken in de berekening bepaalt inductief of capacitief.</p>';$('#resonance').disabled=!r.f0;$('#kringModelNote').textContent=r.f0?'Resonantie geldt hier voor de gekozen ideale seriekring of voor volledig parallelle ideale takken. Spoelweerstand in serie met L is een andere topologie.':'Zonder zowel L als C is er in dit model geen LC-resonantie.';
+}catch(e){$('#rlcresult').textContent=e.message;$('#rlcsteps').innerHTML='';$('#kringValues').innerHTML='';$('#rlcTriangle').innerHTML='';$('#circuitVisual').innerHTML='';$('#resonance').disabled=true;}finally{if(typeof kringScopeUpdate==='function')kringScopeUpdate();}}
+$('#kringPreset').onchange=()=>{const types=$('#kringPreset').value.split('');parts=(types.length===1?[...types,...types]:types).map(type=>({type,value:partDefaults[type]}));$('#kringMessage').textContent='';partsRender()};
+$('#kringParts').oninput=e=>{if(e.target.dataset.part!==undefined){parts[+e.target.dataset.part].value=e.target.value;kringUpdate()}};
+$('#kringParts').onclick=e=>{const b=e.target.closest('[data-remove]');if(b){parts.splice(+b.dataset.remove,1);partsRender()}};
+document.querySelectorAll('[data-addpart]').forEach(b=>b.onclick=()=>{parts.push({type:b.dataset.addpart,value:partDefaults[b.dataset.addpart]});partsRender()});
+$('#kringU').oninput=kringUpdate;$('#kringF').oninput=kringUpdate;$('#rlctype').onchange=kringUpdate;$('#kringSource').onchange=kringUpdate;
+$('#resonance').onclick=()=>{try{const v=kringRead(),r=kringSolve(v.items,v.U,v.f,v.series);if(r.f0){$('#kringF').value=r.f0;kringUpdate();$('#kringMessage').textContent='Frequentie ingesteld op '+fmt(r.f0)+' Hz.'}}catch(e){$('#kringMessage').textContent=e.message}};
+$('#kringPreset').onchange();
+
+function kringUpdateDC(v){
+ const r=kringSolveDC(v.items,v.U,v.series);
+ $('#rlcformula').textContent=r.noSteady?'uᴸ = L × di/dt · geen stationaire oplossing':r.R===Infinity?'Open kring: I = 0 A · P = 0 W':v.series?'Rₜ = ΣR · I = U/Rₜ · P = U × I':'1/Rₜ = Σ(1/R) · Iₜ = ΣIₖ · P = U × I';
+ $('#rlcresult').innerHTML=`DC · ${r.noSteady?'ideaal grensgeval':'stationaire toestand'}<strong>${r.noSteady?'Geen stationaire oplossing':'I = '+kn(r.I)+' A'}</strong>${r.noSteady?'De stroom in een ideale spoel met constante niet-nulle spanning blijft veranderen. Een eindige constante bronstroom bestaat hier niet.':'Rₜ = '+kn(r.R)+' Ω<br>P = '+kn(r.P)+' W'}${r.multiCap?'<p>De afzonderlijke condensatorspanningen zijn zonder beginladingen niet bepaald. Hun som is de bronspanning.</p>':''}`;
+ const counts={R:0,L:0,C:0};$('#kringValues').innerHTML=r.rows.map(p=>`<tr><th>${p.type}${++counts[p.type]}</th><td>${fmt(p.value)} ${partUnits[p.type]}</td><td>${kn(p.U)}</td><td>${kn(p.I)}</td></tr>`).join('');
+ $('#rlcsteps').innerHTML=['Bekijk de toestand lang na het inschakelen. Dit model berekent geen laadcurve of inschakelstroom.','Een ideale condensator laat stationair geen stroom door: een open verbinding. Een ideale spoel heeft bij constante stroom geen spanningsval: een draad.',r.noSteady?'Hier staat toch een niet-nulle DC-spanning over een ideale spoel of een serie van ideale spoelen. Dan geldt di/dt = U/L: de stroom blijft oplopen. Werkelijke spoelen hebben weerstand.':r.R===Infinity?'Er is geen gesloten stroompad door de bron: I = 0 A. Er kan wel spanning over een condensator staan.':`Bereken de vervangingsweerstand van de weerstanden: Rₜ = ${kn(r.R)} Ω. Bereken I = U/Rₜ en P = U × I.`,v.series?'Serie: dezelfde stroom. Weerstandsspanningen zijn I × R; de spanningen samen zijn U.':'Parallel: elke tak heeft dezelfde spanning U. Tel de takstromen op voor de bronstroom.'].map(x=>'<li>'+x+'</li>').join('');
+ $('#circuitVisual').innerHTML=kringDiagram(v.items,v.series,true);
+ $('#rlcTriangle').innerHTML='<div class="visual-title">DC: denk in stroompaden</div><div class="guide-note"><b>R · tegenwerking</b><p>U = I × R</p><b>L · draad bij constante stroom</b><p>uᴸ = 0 als di/dt = 0</p><b>C · open bij constante spanning</b><p>iᶜ = 0 als du/dt = 0</p></div><p class="small">Geen sinusvormige wisselgrootheden: fasehoek, cos φ en de AC-driehoek worden hier niet toegepast.</p>';
+ $('#resonance').disabled=true;$('#kringModelNote').textContent='DC-model met ideale componenten. De beginlading van condensatoren en de beginstroom van spoelen zijn niet opgegeven. Bij meerdere seriecondensatoren is de spanningsverdeling daardoor niet uniek. Voeg bij een spoel een echte wikkelweerstand in serie toe om een eindige DC-eindstroom te modelleren; volledig parallelle takken zijn een andere topologie.';
+}
