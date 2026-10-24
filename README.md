@@ -71,7 +71,7 @@ Broncode CircuitJS (GPL): https://github.com/sharpie7/circuitjs1
 
 Voer vanuit de repository `node --test tests/formulas.cjs` uit (Node.js 18 of recenter; geen npm-installatie nodig). De tests controleren de basiscalculators en terugrekeningen, eenheden, AC/DC-kringen en resonantie, motorvermogen, rendement, ster/driehoekcompensatie, Faraday/Lenz/Lorentz, generatorflux, slip, overbrengingen, oscilloscoopfasen en Falstad-export.
 
-De formulegids beschrijft de notatie. Een underscore markeert een index: `U_L` is de spoelspanning, `U_lijn` de lijnspanning. Machten blijven als machten geschreven, bijvoorbeeld `U_L²`. `η` en `s` zijn verhoudingen; procentvelden rekenen hun invoer om met een factor 1/100. Fluxkoppeling gebruikt `λ`, arbeidsfactor `PF`.
+De formulegids beschrijft de notatie in gewone taal. `notation.js` zet indices in de brontekst (zoals `U_L` en `U_lijn`) om naar echte onderindices in HTML en SVG, ook na wijzigingen in de calculators. Keuzelijsten schrijven de index tussen haakjes. Machten blijven bovenaan staan. De hoofdformules voor kringen gebruiken geen complexe getallen of somtekens; ze tonen de berekening met de ingevulde waarden. Verdiepende uitleg over j, Σ, absolute waarden en afgeleiden blijft beschikbaar via uitklapbare uitleg. `η` en `s` zijn verhoudingen; procentvelden rekenen hun invoer om met een factor 1/100. Fluxkoppeling gebruikt `λ`, arbeidsfactor `PF`.
 
 Deze controles toetsen de ideale rekenmodellen. Ze valideren geen echte motor of elektrische installatie; veldtekeningen en de interpolatie in het lastmodel blijven onderwijsmodellen. De in de oorspronkelijke export genoemde 5602 controles zijn geen meegeleverde testsuite.
 
