@@ -66,3 +66,13 @@ De bijbehorende rekencontroles zijn uitgevoerd. Er staan geen accountgegevens, p
 
 Falstad/CircuitJS: Paul Falstad en Iain Sharp. Externe simulator: https://www.falstad.com/circuit/
 Broncode CircuitJS (GPL): https://github.com/sharpie7/circuitjs1
+
+## Formules controleren
+
+Voer vanuit de repository `node --test tests/formulas.cjs` uit (Node.js 18 of recenter; geen npm-installatie nodig). De tests controleren de basiscalculators en terugrekeningen, eenheden, AC/DC-kringen en resonantie, motorvermogen, rendement, ster/driehoekcompensatie, Faraday/Lenz/Lorentz, generatorflux, slip, overbrengingen, oscilloscoopfasen en Falstad-export.
+
+De formulegids beschrijft de notatie. Een underscore markeert een index: `U_L` is de spoelspanning, `U_lijn` de lijnspanning. Machten blijven als machten geschreven, bijvoorbeeld `U_L²`. `η` en `s` zijn verhoudingen; procentvelden rekenen hun invoer om met een factor 1/100. Fluxkoppeling gebruikt `λ`, arbeidsfactor `PF`.
+
+Deze controles toetsen de ideale rekenmodellen. Ze valideren geen echte motor of elektrische installatie; veldtekeningen en de interpolatie in het lastmodel blijven onderwijsmodellen. De in de oorspronkelijke export genoemde 5602 controles zijn geen meegeleverde testsuite.
+
+Voor de optionele browsercontrole: start vanuit de repository `python -m http.server 8000 --bind 127.0.0.1` en voer in een tweede terminal `python tests/browser_smoke.py` uit. De ingerichte cloudomgeving bevat Playwright voor Python en Chromium op `/usr/bin/chromium`. Deze controle doorloopt alle 13 tabbladen, representatieve berekeningen, de 9 leerpadstappen en de mobiele navigatie. Externe Falstad-inhoud valt buiten deze controle.
