@@ -18,6 +18,26 @@ with sync_playwright() as p:
         assert page.locator('#' + tab).is_visible(), tab
     print('Navigation: 13 tabs passed')
     page.locator('#tabs [data-tab="powerohm"]').click()
+    assert page.locator('#waterCurrent').inner_text() == 'I = 0,3 A'
+    page.locator('#waterMorePressure').click()
+    assert page.locator('#waterCurrent').inner_text() == 'I = 0,6 A'
+    page.locator('#waterMoreResistance').click()
+    assert page.locator('#waterCurrent').inner_text() == 'I = 0,3 A'
+    page.locator('[data-water-mode="hose"]').click()
+    assert page.locator('[data-water-mode="hose"]').get_attribute('aria-pressed') == 'true'
+    assert 'Nauwe slang' in page.locator('#waterScene').inner_text()
+    page.locator('#waterApply').click()
+    assert 'U = 24 V' in page.locator('#opResults').inner_text()
+    assert 'R = 80 Ω' in page.locator('#opResults').inner_text()
+    page.locator('#waterU').focus()
+    page.locator('#waterU').press('Home')
+    assert page.locator('#waterCurrent').inner_text() == 'I = 0 A'
+    assert page.locator('#waterScene .water-flow').count() == 0
+    assert page.locator('#waterApply').is_disabled()
+    page.locator('#waterReset').click()
+    assert page.locator('#waterCurrent').inner_text() == 'I = 0,3 A'
+    assert page.locator('#waterScene .water-flow').evaluate('(e)=>getComputedStyle(e).animationName') == 'none'
+    page.locator('#opExample').click()
     page.locator('#opValue0').fill('24')
     assert 'I = 0,6 A' in page.locator('#opResults').inner_text()
     assert 'P = 14,4 W' in page.locator('#opResults').inner_text()
@@ -97,6 +117,10 @@ with sync_playwright() as p:
         page.locator(f'#tabs [data-tab="{tab}"]').click()
         page.wait_for_timeout(50)
         assert '_' not in page.locator('#' + tab).inner_text(), tab
+        if tab == 'powerohm':
+            assert page.locator('#ohmWater').evaluate('(e)=>e.scrollWidth<=e.clientWidth')
+            page.locator('[data-water-mode="tap"]').click()
+            assert page.locator('#waterScene svg').is_visible()
         for formula in page.locator('#' + tab + ' .formula').all():
             if formula.is_visible():
                 assert formula.evaluate('(e)=>e.scrollWidth<=e.clientWidth'), (tab, formula.inner_text())

@@ -17,3 +17,25 @@ body.route-start .quick-start{display:none}.beginner-heading{max-width:760px;mar
 .formula { white-space: pre-line; overflow-wrap: anywhere; line-height: 1.65; }
 sub { font-size: .7em; line-height: 0; vertical-align: sub; }
 .formula-help { padding: 12px 16px; border-left: 3px solid #087e82; background: #edf5f1; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+
+.water-lab h3 { margin: 8px 0 12px; }
+.water-lab svg { width: 100%; height: auto; max-height: none; display: block; }
+.water-lab svg text { font: 15px system-ui, sans-serif; fill: #254b53; }
+.water-modes { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
+.water-modes [aria-pressed="true"] { background: #087e82; color: white; }
+.water-controls, .water-metrics { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.water-controls input[type="range"] { padding: 0; accent-color: #087e82; min-height: 36px; }
+.water-controls small { display: block; line-height: 1.5; font-weight: 400; }
+.water-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); margin: 20px 0; }
+.water-metrics > div { background: white; padding: 14px; border: 1px solid #c9deda; border-radius: 10px; }
+.water-metrics span, .water-metrics strong { display: block; }
+.water-metrics span { font-size: 13px; }
+.water-metrics strong { color: #087e82; font-size: 23px; margin-top: 6px; }
+.water-link { margin-top: 18px; }
+.water-flow { stroke-dasharray: 8 14; animation: water-flow 1s linear infinite; }
+@keyframes water-flow { to { stroke-dashoffset: -44; } }
+@media (max-width: 600px) {
+  .water-controls, .water-metrics { grid-template-columns: 1fr; }
+  .water-lab svg text { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) { .water-flow { animation: none; } }
